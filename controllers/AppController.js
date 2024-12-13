@@ -3,8 +3,8 @@ import dbClient from '../utils/db';
 
 class AppController {
   /**
-   *  return if Redis and database are active
-   * by using the 2 utils initially created
+   * should return if Redis is alive and if the DB is alive too
+   * by using the 2 utils created previously:
    * { "redis": true, "db": true } with a status code 200
    */
   static getStatus(request, response) {
@@ -16,7 +16,7 @@ class AppController {
   }
 
   /**
-   * returns the number of users and files in DB:
+   * should return the number of users and files in DB:
    * { "users": 12, "files": 1231 }
    *  with a status code 200
    */
