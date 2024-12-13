@@ -10,8 +10,18 @@ const FOLDER_PATH = process.env.FOLDER_PATH || '/tmp/files_manager';
 const fileQueue = new Queue('fileQueue');
 
 class FilesController {
-
-
+  /**
+   * Handles file or folder uploads.
+   *
+   * - Authenticates the user using their token.
+   * - Validates required parameters: name, type, parentId, and data (for non-folder types).
+   * - Saves folder metadata in the database.
+   * - For files/images:
+   *   - Decodes Base64 data and writes the file to local disk.
+   *   - Creates a database entry with metadata (e.g., path, owner, visibility).
+   * - For images, adds an asynchronous processing task to the queue.
+   * - Responds with the new file document or appropriate error codes.
+   */
   static async postUpload(request, response) {
     const { userId } = await userUtils.getUserIdAndKey(request);
 
@@ -55,6 +65,15 @@ class FilesController {
     }
 
     return response.status(201).send(newFile);
+  }
+
+  /**
+   * Fetches metadata for a specific file.
+   *
+   * - Authenticates the user using their token.
+   * - Ensures the file exists and belongs to the authenticated user.
+   * - Responds with the file's metadata or an error if the file is not found.
+   */
   static async getShow(request, response) {
     const fileId = request.params.id;
 
@@ -66,6 +85,7 @@ class FilesController {
 
     if (!user) return response.status(401).send({ error: 'Unauthorized' });
 
+    // Verifies the validity of the provided IDs.
     if (!basicUtils.isValidId(fileId) || !basicUtils.isValidId(userId)) { return response.status(404).send({ error: 'Not found' }); }
 
     const result = await fileUtils.getFile({
@@ -80,6 +100,15 @@ class FilesController {
     return response.status(200).send(file);
   }
 
+  /**
+   * Lists files under a specific directory with pagination.
+   *
+   * - Authenticates the user using their token.
+   * - Retrieves files from the specified parentId (defaults to root if not provided).
+   * - Supports pagination: 20 items per page, starting at page 0.
+   * - If the parentId is invalid or not a folder, returns an empty list.
+   * - Responds with the list of files or an error for invalid requests.
+   */
   static async getIndex(request, response) {
     const { userId } = await userUtils.getUserIdAndKey(request);
 
@@ -128,6 +157,14 @@ class FilesController {
     return response.status(200).send(fileList);
   }
 
+  /**
+   * Publishes a file, making it publicly accessible.
+   *
+   *  Authenticates the user using their token.
+   *  Checks if the file exists and is owned by the user.
+   *  Sets the `isPublic` attribute of the file to true.
+   *  Responds with the updated file document or an error.
+   */
   static async putPublish(request, response) {
     const { error, code, updatedFile } = await fileUtils.publishUnpublish(
       request,
@@ -139,6 +176,14 @@ class FilesController {
     return response.status(code).send(updatedFile);
   }
 
+  /**
+   * Unpublishes a file, restricting public access.
+   *
+   *  Authenticates the user using their token.
+   *  Checks if the file exists and is owned by the user.
+   *  Sets the `isPublic` attribute of the file to false.
+   *  Responds with the updated file document or an error.
+   */
   static async putUnpublish(request, response) {
     const { error, code, updatedFile } = await fileUtils.publishUnpublish(
       request,
@@ -150,11 +195,20 @@ class FilesController {
     return response.status(code).send(updatedFile);
   }
 
+  /**
+   * Fetches the content of a specific file.
+   *
+   *  Authenticates the user and ensures the file is public or owned by them.
+   *  Validates that the file is not a folder and exists locally.
+   * Retrieves file content, sets the appropriate MIME type
+   *  Responds with the file content or an error if the file is unavailable.
+   */
   static async getFile(request, response) {
     const { userId } = await userUtils.getUserIdAndKey(request);
     const { id: fileId } = request.params;
     const size = request.query.size || 0;
 
+    // Validates file ID before proceeding.
     if (!basicUtils.isValidId(fileId)) { return response.status(404).send({ error: 'Not found' }); }
 
     const file = await fileUtils.getFile({
@@ -182,3 +236,4 @@ class FilesController {
 }
 
 export default FilesController;
+
